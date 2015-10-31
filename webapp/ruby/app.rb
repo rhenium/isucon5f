@@ -177,13 +177,23 @@ SQL
         a = fetch_api("http://api.five-final.isucon.net:8080/#{c}", {}, {})
         redis.hset("ken", c, a)
       end
-      a
+      Oj.load(a)
     when "surname", "givenname"
       c = conf["params"]["q"]
       a = redis.hget(service, c)
       unless a
         a = fetch_api("http://api.five-final.isucon.net:8081/#{service}", {}, conf["params"])
         redis.hset(service, c, a)
+      end
+      Oj.load(a)
+    when "perfectsec_attacked"
+      c = conf["token"]
+      _a = redis.hget(service, c)
+      a = Oj.load(_a) if _a
+      if !_a || Time.at(a["updated_at"]) < Time.now - 33 # TODO
+        _a = fetch_api("https://api.five-final.isucon.net:8443/attacked_list", {"X-PERFECT-SECURITY-TOKEN" => c}, {})
+        redis.hset(service, c, _a)
+        a = Oj.load(_a)
       end
       a
     else
@@ -195,9 +205,9 @@ SQL
       when 'param' then params[token_key] = conf['token']
       end
       uri = sprintf(uri_template, *conf['keys'])
-      fetch_api(uri, headers, params)
+      Oj.load fetch_api(uri, headers, params)
     end
-    {"service" => service, "data" => Oj.load(data)}
+    {"service" => service, "data" => data}
   end
 
   get '/data' do
