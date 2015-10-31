@@ -3,5 +3,6 @@ export PATH=/usr/local/bin:/home/isucon/.local/ruby/bin:/home/isucon/.local/node
 export GOPATH=/home/isucon/gocode
 export _JAVA_OPTIONS="-Dfile.encoding=UTF-8"
 export REDIS_IP="203.104.208.198"
+export RACK_ENV=production
 
 exec $*
