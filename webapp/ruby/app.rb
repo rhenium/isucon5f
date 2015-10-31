@@ -162,30 +162,26 @@ SQL
       @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
     end
     res = @client.get_content(uri, params, headers)
-    Oj.load(res)
   end
 
-  $ken = {}
-  $surname = {}
-  $givenname = {}
   def api_req(service, conf)
     data = case service
-    when "ken"
-      c = conf["keys"].first
-      $ken[c] ||=
-        fetch_api("http://api.five-final.isucon.net:8080/#{c}", {}, {})
-    when "ken2"
-      c = conf["params"]["zipcode"]
-      $ken[c] ||=
-        fetch_api("http://api.five-final.isucon.net:8080/", {}, conf["params"])
-    when "surname"
+    when "ken", "ken2"
+      c = conf["params"]["zipcode"] || conf["keys"].first
+      a = redis.hget("ken", c)
+      unless a
+        a = fetch_api("http://api.five-final.isucon.net:8080/#{c}", {}, {})
+        redis.hset("ken", c, a)
+      end
+      a
+    when "surname", "givenname"
       c = conf["params"]["q"]
-      $surname[c] ||=
-        fetch_api("http://api.five-final.isucon.net:8081/surname", {}, conf["params"])
-    when "givenname"
-      c = conf["params"]["q"]
-      $givenname[c] ||=
-        fetch_api("http://api.five-final.isucon.net:8081/givenname", {}, conf["params"])
+      a = redis.hget(service, c)
+      unless a
+        a = fetch_api("http://api.five-final.isucon.net:8081/#{service}", {}, conf["params"])
+        redis.hset(service, c, a)
+      end
+      a
     else
       method, token_type, token_key, uri_template = $endpoints[service]
       headers = {}
@@ -197,7 +193,7 @@ SQL
       uri = sprintf(uri_template, *conf['keys'])
       fetch_api(uri, headers, params)
     end
-    {"service" => service, "data" => data}
+    {"service" => service, "data" => Oj.load(data)}
   end
 
   get '/data' do
