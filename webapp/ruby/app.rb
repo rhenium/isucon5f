@@ -49,7 +49,6 @@ class Isucon5f::WebApp < Sinatra::Base
       return Thread.current[:faraday] if Thread.current[:faraday]
       manager = Typhoeus::Hydra.new(max_concurrency: 100)
       con = Faraday.new(parallel_manager: manager) do |builder|
-        builder.use PosterResponseHandler
         builder.adapter :typhoeus
       end
       Thread.current[:faraday] = conn
