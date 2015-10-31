@@ -10,7 +10,7 @@ require 'rack-lineprof'
 require "redis"
 require "redis/connection/hiredis"
 require 'typhoeus'
-require 'faraday'
+require 'typhoeus/adapters/faraday'
 
 # bundle config build.pg --with-pg-config=<path to pg_config>
 # bundle install
