@@ -156,19 +156,48 @@ SQL
     redirect '/modify'
   end
 
-  def fetch_api(method, uri, headers, params)
-    client = HTTPClient.new
+  def fetch_api(uri, headers, params)
+    @client ||= HTTPClient.new
     if uri.start_with? "https://"
-      client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
     end
-    fetcher = case method
-              when 'GET' then client.method(:get_content)
-              when 'POST' then client.method(:post_content)
-              else
-                raise "unknown method #{method}"
-              end
-    res = fetcher.call(uri, params, headers)
+    res = @client.get_content(uri, params, headers)
     Oj.load(res)
+  end
+
+  $ken = {}
+  $surname = {}
+  $givenname = {}
+  def api_req(service, conf)
+    data = case service
+    when "ken"
+      c = conf["keys"].first
+      $ken[c] ||=
+        fetch_api("http://api.five-final.isucon.net:8080/#{c}", {}, {})
+    when "ken2"
+      c = conf["params"]["zipcode"]
+      $ken[c] ||=
+        fetch_api("http://api.five-final.isucon.net:8080/", {}, conf["params"])
+    when "surname"
+      c = conf["params"]["q"]
+      $surname[c] ||=
+        fetch_api("http://api.five-final.isucon.net:8081/surname", {}, conf["params"])
+    when "givenname"
+      c = conf["params"]["q"]
+      $givenname[c] ||=
+        fetch_api("http://api.five-final.isucon.net:8081/givenname", {}, conf["params"])
+    else
+      method, token_type, token_key, uri_template = $endpoints[service]
+      headers = {}
+      params = (conf['params'] && conf['params'].dup) || {}
+      case token_type
+      when 'header' then headers[token_key] = conf['token']
+      when 'param' then params[token_key] = conf['token']
+      end
+      uri = sprintf(uri_template, *conf['keys'])
+      fetch_api(method, uri, headers, params)
+    end
+    {"service" => service, "data" => data}
   end
 
   get '/data' do
@@ -182,15 +211,7 @@ SQL
     data = []
 
     arg.each_pair do |service, conf|
-      method, token_type, token_key, uri_template = $endpoints[service]
-      headers = {}
-      params = (conf['params'] && conf['params'].dup) || {}
-      case token_type
-      when 'header' then headers[token_key] = conf['token']
-      when 'param' then params[token_key] = conf['token']
-      end
-      uri = sprintf(uri_template, *conf['keys'])
-      data << {"service" => service, "data" => fetch_api(method, uri, headers, params)}
+      data << api_req(service, conf)
     end
 
     json data
