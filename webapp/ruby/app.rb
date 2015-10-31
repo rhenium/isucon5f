@@ -64,7 +64,7 @@ class Isucon5f::WebApp < Sinatra::Base
     nid = redis.incr("user_lid")
     salt = generate_salt
     passhash = '\\x' + Digest::SHA512.hexdigest(salt + params['password'])
-    u = { id: nid.to_i, email: params['email'], grade: params['grade'], passhash: hash, salt: salt }
+    u = { id: nid.to_i, email: params['email'], grade: params['grade'], passhash: passhash, salt: salt }
     redis.hset("users", params['email'], Oj.dump(u))
     redis.hset("subscriptions", nid.to_s, "{}")
     redirect '/login'
@@ -207,12 +207,12 @@ class Isucon5f::WebApp < Sinatra::Base
     arg = Oj.load(arg_json)
 
     data = []
-
     arg.each_pair do |service, conf|
       data << api_req(service, conf)
     end
 
-    json data
+    content_type :json
+    Oj.dump(data)
   end
 
   get '/initialize' do
