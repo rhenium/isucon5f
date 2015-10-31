@@ -3,7 +3,7 @@ require 'sinatra/contrib'
 require 'pg'
 require 'tilt/erubis'
 require 'erubis'
-require 'json'
+require 'oj'
 require 'httpclient'
 require 'openssl'
 require 'rack-lineprof'
@@ -171,7 +171,7 @@ UPDATE subscriptions SET arg=$1 WHERE user_id=$2
 SQL
     db.transaction do |conn|
       arg_json = conn.exec_params(select_query, [user[:id]]).values.first[0]
-      arg = JSON.parse(arg_json)
+      arg = Oj.load(arg_json)
       arg[service] ||= {}
       arg[service]['token'] = token if token
       arg[service]['keys'] = keys if keys
@@ -196,7 +196,7 @@ SQL
                 raise "unknown method #{method}"
               end
     res = fetcher.call(uri, params, headers)
-    JSON.parse(res)
+    Oj.load(res)
   end
 
   get '/data' do
@@ -205,7 +205,7 @@ SQL
     end
 
     arg_json = db.exec_params("SELECT arg FROM subscriptions WHERE user_id=$1", [user[:id]]).values.first[0]
-    arg = JSON.parse(arg_json)
+    arg = Oj.load(arg_json)
 
     data = []
 

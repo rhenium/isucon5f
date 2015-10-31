@@ -6,4 +6,6 @@ gem "pg"
 gem "erubis"
 gem "unicorn"
 gem "httpclient"
+
+gem 'oj'
 gem "rack-lineprof"
