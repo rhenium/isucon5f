@@ -46,7 +46,7 @@ $init = -> {
       a = []
       ts.each { |tuple|
         lid = tuple['id'].to_i
-        a << tuple["email"] << Oj.dump({id: tuple['id'].to_i, email: tuple['email'], grade: tuple['grade'], passhash: tuple['passhash'], salt: tuple['salt']}
+        a << tuple["email"] << Oj.dump({id: tuple['id'].to_i, email: tuple['email'], grade: tuple['grade'], passhash: tuple['passhash'], salt: tuple['salt']})
       }
       redis.hmset("users", *a)
     }
