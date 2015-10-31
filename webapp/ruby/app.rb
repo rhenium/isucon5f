@@ -157,7 +157,7 @@ SQL
       arg[service]['params'][param_name] = param_value
     end
 
-    redis.hset("subscriptions", user[:id], Oj.dump(arg)
+    redis.hset("subscriptions", user[:id], Oj.dump(arg))
     redirect '/modify'
   end
 
