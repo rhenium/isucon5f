@@ -16,7 +16,6 @@ tenki = Thread.new {
   loop do
     p _a = fetch_api("http://api.five-final.isucon.net:8988/", {}, {})
     redis.set("tenki", _a)
-    sleep 1
   end
 }
 
