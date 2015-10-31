@@ -65,7 +65,7 @@ class Isucon5f::WebApp < Sinatra::Base
     salt = generate_salt
     passhash = Digest::SHA512.digest(salt + params['password'])
     u = { id: nid.to_i, email: params['email'], grade: params['grade'], passhash: hash, salt: salt }
-    redis.hset("users", email, Oj.dump(u))
+    redis.hset("users", params['email'], Oj.dump(u))
     redis.hset("subscriptions", nid.to_s, "{}")
     redirect '/login'
   end
