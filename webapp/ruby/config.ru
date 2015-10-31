@@ -61,5 +61,5 @@ $init = -> {
 
 $init[]
 
-use Rack::Lineprof
+# use Rack::Lineprof
 run Isucon5f::WebApp

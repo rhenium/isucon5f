@@ -5,7 +5,7 @@ require 'erubis'
 require 'oj'
 require 'httpclient'
 require 'openssl'
-require 'rack-lineprof'
+# require 'rack-lineprof'
 require "redis"
 require "redis/connection/hiredis"
 require "digest/sha2"
