@@ -179,7 +179,7 @@ class Isucon5f::WebApp < Sinatra::Base
       a = Oj.load(_a) if _a
       if !_a || Time.parse(a["date"]) < Time.now - 3 # TODO
         _a = fetch_api("http://api.five-final.isucon.net:8988/", {}, {"zipcode" => c})
-        redis.setex("tenki", 3, _a) # set TTL 3 secs
+        redis.set("tenki", _a)
         a = Oj.load(_a)
       end
       a
