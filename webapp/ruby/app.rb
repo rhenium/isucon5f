@@ -107,7 +107,7 @@ INSERT INTO subscriptions (user_id,arg) VALUES ($1,$2)
 SQL
     db.transaction do |conn|
       user_id = conn.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
-      conn.exec_params(insert_subscription_query, [user_id, default_arg.to_json])
+      conn.exec_params(insert_subscription_query, [user_id, Oj.dump(default_arg)])
     end
     redirect '/login'
   end
@@ -180,7 +180,7 @@ SQL
         arg[service]['params'] ||= {}
         arg[service]['params'][param_name] = param_value
       end
-      conn.exec_params(update_query, [arg.to_json, user[:id]])
+      conn.exec_params(update_query, [Oj.dump(arg), user[:id]])
     end
     redirect '/modify'
   end
