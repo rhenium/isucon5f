@@ -1,4 +1,5 @@
 require_relative './app.rb'
+require 'pg'
 
 $config = {
   db: {
@@ -11,6 +12,9 @@ $config = {
 }
 
 $init = -> {
+  file = File.expand_path("../../sql/initialize.sql", __FILE__)
+  system("psql", "-f", file, "isucon5f")
+
   conn = PG.connect(
     host: $config[:db][:host],
     port: $config[:db][:port],

@@ -1,6 +1,5 @@
 require 'sinatra/base'
 require 'sinatra/contrib'
-require 'pg'
 require 'tilt/erubis'
 require 'erubis'
 require 'oj'
@@ -30,20 +29,6 @@ class Isucon5f::WebApp < Sinatra::Base
   SALT_CHARS = [('a'..'z'),('A'..'Z'),('0'..'9')].map(&:to_a).reduce(&:+)
 
   helpers do
-    def db
-      return Thread.current[:isucon5_db] if Thread.current[:isucon5_db]
-      conn = PG.connect(
-        host: $config[:db][:host],
-        port: $config[:db][:port],
-        user: $config[:db][:username],
-        password: $config[:db][:password],
-        dbname: $config[:db][:database],
-        connect_timeout: 3600
-      )
-      Thread.current[:isucon5_db] = conn
-      conn
-    end
-
     def redis
       Thread.current[:redis] ||= Redis.new
     end
@@ -66,11 +51,7 @@ class Isucon5f::WebApp < Sinatra::Base
     end
 
     def generate_salt
-      salt = ''
-      32.times do
-        salt << SALT_CHARS[rand(SALT_CHARS.size)]
-      end
-      salt
+      32.times.map { SALT_CHARS.sample }.join
     end
   end
 
@@ -234,8 +215,6 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   get '/initialize' do
-    file = File.expand_path("../../sql/initialize.sql", __FILE__)
-    system("psql", "-f", file, "isucon5f")
     $init[]
   end
 end
