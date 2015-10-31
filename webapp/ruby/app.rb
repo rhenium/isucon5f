@@ -63,21 +63,15 @@ SQL
           user = {id: tuple['id'].to_i, email: tuple['email'], grade: tuple['grade']}
         end
       end
-      session[:user_id] = user[:id] if user
-      user
+      session[:user] = Oj.dump(user)
+      @user = user
     end
 
     def current_user
       return @user if @user
-      return nil unless session[:user_id]
-      @user = nil
-      db.exec_params('SELECT id,email,grade FROM users WHERE id=$1', [session[:user_id]]) do |r|
-        r.each do |tuple|
-          @user = {id: tuple['id'].to_i, email: tuple['email'], grade: tuple['grade']}
-        end
+      if u = session[:user]
+        @user = Oj.load(u)
       end
-      session.clear unless @user
-      @user
     end
 
     def generate_salt
