@@ -51,7 +51,7 @@ class Isucon5f::WebApp < Sinatra::Base
       con = Faraday.new(parallel_manager: manager) do |builder|
         builder.adapter :typhoeus
       end
-      Thread.current[:faraday] = conn
+      Thread.current[:faraday] = con
     end
 
     def redis
