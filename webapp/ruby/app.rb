@@ -10,9 +10,6 @@ require "redis"
 require "redis/connection/hiredis"
 require "digest/sha2"
 
-# bundle config build.pg --with-pg-config=<path to pg_config>
-# bundle install
-
 module Isucon5f
   module TimeWithoutZone
     def to_s
@@ -23,7 +20,7 @@ module Isucon5f
 end
 
 class Isucon5f::WebApp < Sinatra::Base
-  use Rack::Session::Cookie, secret: (ENV['ISUCON5_SESSION_SECRET'] || 'tonymoris')
+  helpers Sinatra::Cookies
   set :erb, escape_html: true
 
   SALT_CHARS = [('a'..'z'),('A'..'Z'),('0'..'9')].map(&:to_a).reduce(&:+)
@@ -37,16 +34,10 @@ class Isucon5f::WebApp < Sinatra::Base
       if preu = redis.hget("users", email)
         preuu = Oj.load(preu)
         if preuu[:passhash] == '\\x' + Digest::SHA512.hexdigest(preuu[:salt] + password)
-          session[:user] = preu
-          @user = preuu
+          cookies["user_id"] = preuu[:id]
+          cookies["grade"] = preuu[:grade]
+          cookies["email"] = email
         end
-      end
-    end
-
-    def current_user
-      return @user if @user
-      if u = session[:user]
-        @user = Oj.load(u)
       end
     end
 
@@ -56,7 +47,7 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   get '/signup' do
-    session.clear
+    cookies.delete("user_id")
     erb :signup
   end
 
@@ -75,43 +66,41 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   get '/login' do
-    session.clear
+    cookies.delete("user_id")
     erb :login
   end
 
   post '/login' do
     authenticate params['email'], params['password']
-    halt 403 unless current_user
+    halt 403 unless cookies["user_id"]
     redirect '/'
   end
 
   get '/logout' do
-    session.clear
+    cookies.delete("user_id")
     redirect '/login'
   end
 
   get '/' do
-    unless current_user
+    unless cookies["user_id"]
       return redirect '/login'
     end
-    erb :main, locals: {user: current_user}
+    erb :main, locals: {email: cookies["email"]}
   end
 
   get '/user.js' do
-    halt 403 unless current_user
-    erb :userjs, content_type: 'application/javascript', locals: {grade: current_user[:grade]}
+    halt 403 unless cookies["user_id"]
+    erb :userjs, content_type: 'application/javascript', locals: {grade: cookies["grade"]}
   end
 
   get '/modify' do
-    user = current_user
-    halt 403 unless user
+    halt 403 unless cookies["user_id"]
 
-    erb :modify, locals: {user: user}
+    erb :modify, locals: {grade: cookies["grade"], email: cookies["email"]}
   end
 
   post '/modify' do
-    user = current_user
-    halt 403 unless user
+    halt 403 unless cookies["user_id"]
 
     service = params["service"]
     token = params.has_key?("token") ? params["token"].strip : nil
@@ -198,11 +187,9 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   get '/data' do
-    unless user = current_user
-      halt 403
-    end
+    halt 403 unless cookies["user_id"]
 
-    arg_json = redis.hget("subscriptions", user[:id].to_s)
+    arg_json = redis.hget("subscriptions", cookies["user_id"].to_s)
     arg = Oj.load(arg_json)
 
     data = []
