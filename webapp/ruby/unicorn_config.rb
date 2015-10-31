@@ -1,4 +1,4 @@
-worker_processes 4
+worker_processes 10
 preload_app true
 listen 8080
 listen "/sock/unicorn.sock", backlog: 4096
