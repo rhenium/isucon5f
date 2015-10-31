@@ -206,12 +206,12 @@ class Isucon5f::WebApp < Sinatra::Base
     arg = Oj.load(arg_json)
 
     data = []
-
     arg.each_pair do |service, conf|
       data << api_req(service, conf)
     end
 
-    json data
+    content_type :json
+    Oj.dump(data)
   end
 
   get '/initialize' do
