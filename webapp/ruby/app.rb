@@ -89,7 +89,7 @@ SQL
 INSERT INTO users (email,salt,passhash,grade) VALUES ($1,$2,digest($3 || $4, 'sha512'),$5) RETURNING id
 SQL
     user_id = db.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
-    redis.hset("subscriptions", user_id, "{}")
+    redis.hset("subscriptions", user_id.to_s, "{}")
     redirect '/login'
   end
 
@@ -129,11 +129,6 @@ SQL
     user = current_user
     halt 403 unless user
 
-    #query = <<SQL
-#SELECT arg FROM subscriptions WHERE user_id=$1
-#SQL
-    #arg = db.exec_params(query, [user[:id]]).values.first[0]
-    #erb :modify, locals: {user: user, arg: arg}
     erb :modify, locals: {user: user}
   end
 
@@ -157,7 +152,7 @@ SQL
       arg[service]['params'][param_name] = param_value
     end
 
-    redis.hset("subscriptions", user[:id], Oj.dump(arg))
+    redis.hset("subscriptions", user[:id].to_s, Oj.dump(arg))
     redirect '/modify'
   end
 
@@ -204,5 +199,6 @@ SQL
   get '/initialize' do
     file = File.expand_path("../../sql/initialize.sql", __FILE__)
     system("psql", "-f", file, "isucon5f")
+    $init[]
   end
 end
