@@ -27,26 +27,14 @@ class Isucon5f::WebApp < Sinatra::Base
   SALT_CHARS = [('a'..'z'),('A'..'Z'),('0'..'9')].map(&:to_a).reduce(&:+)
 
   helpers do
-    def config
-      @config ||= {
-        db: {
-          host: ENV['ISUCON5_DB_HOST'] || 'localhost',
-          port: ENV['ISUCON5_DB_PORT'] && ENV['ISUCON5_DB_PORT'].to_i,
-          username: ENV['ISUCON5_DB_USER'] || 'isucon',
-          password: ENV['ISUCON5_DB_PASSWORD'],
-          database: ENV['ISUCON5_DB_NAME'] || 'isucon5f',
-        },
-      }
-    end
-
     def db
       return Thread.current[:isucon5_db] if Thread.current[:isucon5_db]
       conn = PG.connect(
-        host: config[:db][:host],
-        port: config[:db][:port],
-        user: config[:db][:username],
-        password: config[:db][:password],
-        dbname: config[:db][:database],
+        host: $config[:db][:host],
+        port: $config[:db][:port],
+        user: $config[:db][:username],
+        password: $config[:db][:password],
+        dbname: $config[:db][:database],
         connect_timeout: 3600
       )
       Thread.current[:isucon5_db] = conn
@@ -204,8 +192,7 @@ SQL
     data = []
 
     arg.each_pair do |service, conf|
-      row = db.exec_params("SELECT meth, token_type, token_key, uri FROM endpoints WHERE service=$1", [service]).values.first
-      method, token_type, token_key, uri_template = row
+      method, token_type, token_key, uri_template = $endpoints[service]
       headers = {}
       params = (conf['params'] && conf['params'].dup) || {}
       case token_type
