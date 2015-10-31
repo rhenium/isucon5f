@@ -167,7 +167,11 @@ SQL
   def api_req(service, conf)
     data = case service
     when "ken", "ken2"
-      c = conf["params"]["zipcode"] || conf["keys"].first
+      if service == "ken"
+        c = conf["keys"].first
+      else
+        c = conf["params"]["zipcode"]
+      end
       a = redis.hget("ken", c)
       unless a
         a = fetch_api("http://api.five-final.isucon.net:8080/#{c}", {}, {})
