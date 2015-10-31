@@ -101,6 +101,7 @@ INSERT INTO users (email,salt,passhash,grade) VALUES ($1,$2,digest($3 || $4, 'sh
 SQL
     user_id = db.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
     redis.hset("subscriptions", user_id, "{}")
+    redis.hset("data", user_id, "[]")
     redirect '/login'
   end
 
@@ -163,6 +164,7 @@ SQL
     end
 
     redis.hset("subscriptions", user[:id], Oj.dump(arg))
+    $update_data(redis, arg)
     redirect '/modify'
   end
 
@@ -170,33 +172,7 @@ SQL
     unless user = current_user
       halt 403
     end
-
-    arg_json = redis.hget("subscriptions", user[:id].to_s)
-    arg = Oj.load(arg_json)
-
-    ress = []
-
-    client.in_parallel do
-      arg.each do |service, conf|
-        method, token_type, token_key, uri_template = $endpoints[service]
-        headers = {}
-        params = (conf['params'] && conf['params'].dup) || {}
-        uri = sprintf(uri_template, *conf['keys'])
-
-        req = client.get(uri) { |req|
-          req.params.merge!(params)
-          req.params[token_key] = conf["token"] if token_type == "param"
-          req.headers[token_key] = conf["token"] if token_type == "header"
-        }
-        ress << [service, req]
-      end
-    end
-
-    data = ress.map { |service, req|
-      {"service" => service, "data" => Oj.load(req.body)}
-    }
-
-    json data
+    redis.hget("data", user[:id])
   end
 
   get '/initialize' do
