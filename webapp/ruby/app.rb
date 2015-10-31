@@ -23,7 +23,6 @@ end
 class Isucon5f::WebApp < Sinatra::Base
   use Rack::Session::Cookie, secret: (ENV['ISUCON5_SESSION_SECRET'] || 'tonymoris')
   set :erb, escape_html: true
-  set :public_folder, File.expand_path('../../static', __FILE__)
 
   SALT_CHARS = [('a'..'z'),('A'..'Z'),('0'..'9')].map(&:to_a).reduce(&:+)
 
