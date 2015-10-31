@@ -195,7 +195,7 @@ SQL
       when 'param' then params[token_key] = conf['token']
       end
       uri = sprintf(uri_template, *conf['keys'])
-      fetch_api(method, uri, headers, params)
+      fetch_api(uri, headers, params)
     end
     {"service" => service, "data" => data}
   end
