@@ -22,6 +22,7 @@ end
 class Isucon5f::WebApp < Sinatra::Base
   helpers Sinatra::Cookies
   set :erb, escape_html: true
+  set :cookie_options, domain: nil
 
   SALT_CHARS = [('a'..'z'),('A'..'Z'),('0'..'9')].map(&:to_a).reduce(&:+)
 
