@@ -73,9 +73,11 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   post '/login' do
-    authenticate params['email'], params['password']
-    halt 403 unless cookies["user_id"]
-    redirect '/'
+    if authenticate(params['email'], params['password'])
+      redirect '/'
+    else
+      halt 403
+    end
   end
 
   get '/logout' do
