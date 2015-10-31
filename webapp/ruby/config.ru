@@ -26,6 +26,18 @@ init = -> {
       $endpoints[tuple['service']] = [tuple["meth"], tuple["token_type"], tuple["token_key"], tuple["uri"]]
     }
   }
+
+  redis = Redis.new
+  redis.flushdb
+  conn.exec_params("select * from subscriptions") { |result|
+    result.each.each_slice(100) { |ts|
+      a = []
+      ts.each { |t|
+        a << t['user_id'] << t["arg"]
+      }
+      redis.hmset("subscriptions", *a)
+    }
+  }
 }
 
 init[]

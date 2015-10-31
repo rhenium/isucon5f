@@ -7,6 +7,8 @@ require 'oj'
 require 'httpclient'
 require 'openssl'
 require 'rack-lineprof'
+require "redis"
+require "redis/connection/hiredis"
 
 # bundle config build.pg --with-pg-config=<path to pg_config>
 # bundle install
@@ -39,6 +41,10 @@ class Isucon5f::WebApp < Sinatra::Base
       )
       Thread.current[:isucon5_db] = conn
       conn
+    end
+
+    def redis
+      Thread.current[:redis] ||= Redis.new
     end
 
     def authenticate(email, password)
@@ -82,14 +88,8 @@ SQL
     insert_user_query = <<SQL
 INSERT INTO users (email,salt,passhash,grade) VALUES ($1,$2,digest($3 || $4, 'sha512'),$5) RETURNING id
 SQL
-    default_arg = {}
-    insert_subscription_query = <<SQL
-INSERT INTO subscriptions (user_id,arg) VALUES ($1,$2)
-SQL
-    db.transaction do |conn|
-      user_id = conn.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
-      conn.exec_params(insert_subscription_query, [user_id, Oj.dump(default_arg)])
-    end
+    user_id = conn.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
+    redis.hset("subscriptions", user_id, "{}"
     redirect '/login'
   end
 
@@ -129,11 +129,12 @@ SQL
     user = current_user
     halt 403 unless user
 
-    query = <<SQL
-SELECT arg FROM subscriptions WHERE user_id=$1
-SQL
-    arg = db.exec_params(query, [user[:id]]).values.first[0]
-    erb :modify, locals: {user: user, arg: arg}
+    #query = <<SQL
+#SELECT arg FROM subscriptions WHERE user_id=$1
+#SQL
+    #arg = db.exec_params(query, [user[:id]]).values.first[0]
+    #erb :modify, locals: {user: user, arg: arg}
+    erb :modify, locals: {user: user}
   end
 
   post '/modify' do
@@ -145,24 +146,18 @@ SQL
     keys = params.has_key?("keys") ? params["keys"].strip.split(/\s+/) : nil
     param_name = params.has_key?("param_name") ? params["param_name"].strip : nil
     param_value = params.has_key?("param_value") ? params["param_value"].strip : nil
-    select_query = <<SQL
-SELECT arg FROM subscriptions WHERE user_id=$1 FOR UPDATE
-SQL
-    update_query = <<SQL
-UPDATE subscriptions SET arg=$1 WHERE user_id=$2
-SQL
-    db.transaction do |conn|
-      arg_json = conn.exec_params(select_query, [user[:id]]).values.first[0]
-      arg = Oj.load(arg_json)
-      arg[service] ||= {}
-      arg[service]['token'] = token if token
-      arg[service]['keys'] = keys if keys
-      if param_name && param_value
-        arg[service]['params'] ||= {}
-        arg[service]['params'][param_name] = param_value
-      end
-      conn.exec_params(update_query, [Oj.dump(arg), user[:id]])
+
+    arg_json = redis.hget("subscriptions", user[:id])
+    arg = Oj.load(arg_json)
+    arg[service] ||= {}
+    arg[service]['token'] = token if token
+    arg[service]['keys'] = keys if keys
+    if param_name && param_value
+      arg[service]['params'] ||= {}
+      arg[service]['params'][param_name] = param_value
     end
+
+    redis.hset("subscriptions", user[:id], Oj.dump(arg)
     redirect '/modify'
   end
 
@@ -186,7 +181,7 @@ SQL
       halt 403
     end
 
-    arg_json = db.exec_params("SELECT arg FROM subscriptions WHERE user_id=$1", [user[:id]]).values.first[0]
+    arg_json = redis.hget("subscriptions", user[:id].to_s)
     arg = Oj.load(arg_json)
 
     data = []
