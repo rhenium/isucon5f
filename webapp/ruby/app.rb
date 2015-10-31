@@ -28,7 +28,7 @@ class Isucon5f::WebApp < Sinatra::Base
 
   helpers do
     def redis
-      Thread.current[:redis] ||= Redis.new
+      Thread.current[:redis] ||= Redis.new(ENV["REDIS_IP"])
     end
 
     def authenticate(email, password)
