@@ -48,7 +48,7 @@ class Isucon5f::WebApp < Sinatra::Base
     def client
       return Thread.current[:faraday] if Thread.current[:faraday]
       manager = Typhoeus::Hydra.new(max_concurrency: 100)
-      con = Faraday.new(parallel_manager: manager) do |builder|
+      con = Faraday.new(parallel_manager: manager, ssl: { verify: false }) do |builder|
         builder.adapter :typhoeus
       end
       Thread.current[:faraday] = con
@@ -164,21 +164,6 @@ SQL
 
     redis.hset("subscriptions", user[:id], Oj.dump(arg))
     redirect '/modify'
-  end
-
-  def fetch_api(method, uri, headers, params)
-    client = HTTPClient.new
-    if uri.start_with? "https://"
-      client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    end
-    fetcher = case method
-              when 'GET' then client.method(:get_content)
-              when 'POST' then client.method(:post_content)
-              else
-                raise "unknown method #{method}"
-              end
-    res = fetcher.call(uri, params, headers)
-    Oj.load(res)
   end
 
   get '/data' do
