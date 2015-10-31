@@ -89,7 +89,7 @@ SQL
 INSERT INTO users (email,salt,passhash,grade) VALUES ($1,$2,digest($3 || $4, 'sha512'),$5) RETURNING id
 SQL
     user_id = conn.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
-    redis.hset("subscriptions", user_id, "{}"
+    redis.hset("subscriptions", user_id, "{}")
     redirect '/login'
   end
 
