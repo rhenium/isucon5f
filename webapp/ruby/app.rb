@@ -37,6 +37,7 @@ class Isucon5f::WebApp < Sinatra::Base
           cookies["user_id"] = preuu[:id]
           cookies["grade"] = preuu[:grade]
           cookies["email"] = email
+          cookies["subscriptions"] = redis.hget("subscriptions", preuu[:id])
         end
       end
     end
@@ -109,7 +110,7 @@ class Isucon5f::WebApp < Sinatra::Base
     param_name = params.has_key?("param_name") ? params["param_name"].strip : nil
     param_value = params.has_key?("param_value") ? params["param_value"].strip : nil
 
-    arg_json = redis.hget("subscriptions", id)
+    arg_json = cookies["subscriptions"]
     arg = Oj.load(arg_json)
     arg[service] ||= {}
     arg[service]['token'] = token if token
@@ -119,7 +120,9 @@ class Isucon5f::WebApp < Sinatra::Base
       arg[service]['params'][param_name] = param_value
     end
 
-    redis.hset("subscriptions", id, Oj.dump(arg))
+    j = Oj.dump(arg)
+    cookies["subscriptions"] = j
+    redis.hset("subscriptions", id, j)
     redirect '/modify'
   end
 
@@ -191,7 +194,7 @@ class Isucon5f::WebApp < Sinatra::Base
     id = cookies["user_id"]
     halt 403 unless id
 
-    arg_json = redis.hget("subscriptions", id)
+    arg_json = cookies["subscriptions"]
     arg = Oj.load(arg_json)
 
     data = []
