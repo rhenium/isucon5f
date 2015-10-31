@@ -31,7 +31,7 @@ $init = -> {
     }
   }
 
-  redis = Redis.new(ENV["REDIS_IP"])
+  redis = Redis.new(host: ENV["REDIS_IP"])
   redis.del("subscriptions")
   conn.exec_params("select * from subscriptions") { |result|
     result.each.each_slice(100) { |ts|

@@ -12,7 +12,7 @@ def fetch_api(uri, headers, params)
 end
 
 tenki = Thread.new {
-  redis = Redis.new
+  redis = Redis.new(host: ENV["REDIS_IP"])
   loop do
     p _a = fetch_api("http://api.five-final.isucon.net:8988/", {}, {})
     redis.set("tenki", _a)
