@@ -9,6 +9,8 @@ require 'openssl'
 require 'rack-lineprof'
 require "redis"
 require "redis/connection/hiredis"
+require 'typhoeus'
+require 'faraday'
 
 # bundle config build.pg --with-pg-config=<path to pg_config>
 # bundle install
@@ -41,6 +43,16 @@ class Isucon5f::WebApp < Sinatra::Base
       )
       Thread.current[:isucon5_db] = conn
       conn
+    end
+
+    def client
+      return Thread.current[:faraday] if Thread.current[:faraday]
+      manager = Typhoeus::Hydra.new(max_concurrency: 100)
+      con = Faraday.new(parallel_manager: manager) do |builder|
+        builder.use PosterResponseHandler
+        builder.adapter :typhoeus
+      end
+      Thread.current[:faraday] = conn
     end
 
     def redis
@@ -128,12 +140,6 @@ SQL
   get '/modify' do
     user = current_user
     halt 403 unless user
-
-    #query = <<SQL
-#SELECT arg FROM subscriptions WHERE user_id=$1
-#SQL
-    #arg = db.exec_params(query, [user[:id]]).values.first[0]
-    #erb :modify, locals: {user: user, arg: arg}
     erb :modify, locals: {user: user}
   end
 
@@ -184,19 +190,27 @@ SQL
     arg_json = redis.hget("subscriptions", user[:id].to_s)
     arg = Oj.load(arg_json)
 
-    data = []
+    ress = []
 
-    arg.each_pair do |service, conf|
-      method, token_type, token_key, uri_template = $endpoints[service]
-      headers = {}
-      params = (conf['params'] && conf['params'].dup) || {}
-      case token_type
-      when 'header' then headers[token_key] = conf['token']
-      when 'param' then params[token_key] = conf['token']
+    client.in_parallel do
+      arg.each do |service, conf|
+        method, token_type, token_key, uri_template = $endpoints[service]
+        headers = {}
+        params = (conf['params'] && conf['params'].dup) || {}
+        uri = sprintf(uri_template, *conf['keys'])
+
+        req = client.get(uri) { |req|
+          req.params.merge!(params)
+          req.params[token_key] = conf["token"] if token_type == "param"
+          req.headers[token_key] = conf["token"] if token_type == "header"
+        }
+        ress << [service, req]
       end
-      uri = sprintf(uri_template, *conf['keys'])
-      data << {"service" => service, "data" => fetch_api(method, uri, headers, params)}
     end
+
+    data = ress.map { |service, req|
+      {"service" => service, "data" => Oj.load(req.body)}
+    }
 
     json data
   end
@@ -204,5 +218,6 @@ SQL
   get '/initialize' do
     file = File.expand_path("../../sql/initialize.sql", __FILE__)
     system("psql", "-f", file, "isucon5f")
+    $init[]
   end
 end

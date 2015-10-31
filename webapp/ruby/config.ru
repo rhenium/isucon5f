@@ -10,7 +10,7 @@ $config = {
   },
 }
 
-init = -> {
+$init = -> {
   conn = PG.connect(
     host: $config[:db][:host],
     port: $config[:db][:port],
@@ -40,7 +40,7 @@ init = -> {
   }
 }
 
-init[]
+$init[]
 
 use Rack::Lineprof
 run Isucon5f::WebApp

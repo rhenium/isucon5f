@@ -11,3 +11,6 @@ gem 'oj'
 gem "rack-lineprof"
 gem "redis"
 gem "hiredis"
+
+gem "faraday"
+gem "typhoeus"
