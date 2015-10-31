@@ -9,8 +9,6 @@ require 'openssl'
 require 'rack-lineprof'
 require "redis"
 require "redis/connection/hiredis"
-require 'typhoeus'
-require 'typhoeus/adapters/faraday'
 
 # bundle config build.pg --with-pg-config=<path to pg_config>
 # bundle install
@@ -43,15 +41,6 @@ class Isucon5f::WebApp < Sinatra::Base
       )
       Thread.current[:isucon5_db] = conn
       conn
-    end
-
-    def client
-      return Thread.current[:faraday] if Thread.current[:faraday]
-      manager = Typhoeus::Hydra.new(max_concurrency: 100)
-      con = Faraday.new(parallel_manager: manager, ssl: { verify: false }) do |builder|
-        builder.adapter :typhoeus
-      end
-      Thread.current[:faraday] = con
     end
 
     def redis
@@ -101,7 +90,6 @@ INSERT INTO users (email,salt,passhash,grade) VALUES ($1,$2,digest($3 || $4, 'sh
 SQL
     user_id = db.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
     redis.hset("subscriptions", user_id, "{}")
-    redis.hset("data", user_id, "[]")
     redirect '/login'
   end
 
@@ -140,6 +128,12 @@ SQL
   get '/modify' do
     user = current_user
     halt 403 unless user
+
+    #query = <<SQL
+#SELECT arg FROM subscriptions WHERE user_id=$1
+#SQL
+    #arg = db.exec_params(query, [user[:id]]).values.first[0]
+    #erb :modify, locals: {user: user, arg: arg}
     erb :modify, locals: {user: user}
   end
 
@@ -164,20 +158,51 @@ SQL
     end
 
     redis.hset("subscriptions", user[:id], Oj.dump(arg))
-    $update_data[redis, user[:id], arg]
     redirect '/modify'
+  end
+
+  def fetch_api(method, uri, headers, params)
+    client = HTTPClient.new
+    if uri.start_with? "https://"
+      client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    end
+    fetcher = case method
+              when 'GET' then client.method(:get_content)
+              when 'POST' then client.method(:post_content)
+              else
+                raise "unknown method #{method}"
+              end
+    res = fetcher.call(uri, params, headers)
+    Oj.load(res)
   end
 
   get '/data' do
     unless user = current_user
       halt 403
     end
-    redis.hget("data", user[:id])
+
+    arg_json = redis.hget("subscriptions", user[:id].to_s)
+    arg = Oj.load(arg_json)
+
+    data = []
+
+    arg.each_pair do |service, conf|
+      method, token_type, token_key, uri_template = $endpoints[service]
+      headers = {}
+      params = (conf['params'] && conf['params'].dup) || {}
+      case token_type
+      when 'header' then headers[token_key] = conf['token']
+      when 'param' then params[token_key] = conf['token']
+      end
+      uri = sprintf(uri_template, *conf['keys'])
+      data << {"service" => service, "data" => fetch_api(method, uri, headers, params)}
+    end
+
+    json data
   end
 
   get '/initialize' do
     file = File.expand_path("../../sql/initialize.sql", __FILE__)
     system("psql", "-f", file, "isucon5f")
-    $init[]
   end
 end
