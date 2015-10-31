@@ -54,7 +54,7 @@ $sinit = -> {
   conn.exec_params("select * from subscriptions") { |result|
     result.each do |t|
       arg = Oj.load(t["arg"])
-      $update_data[redis, arg]
+      $update_data[redis, t["user_id"], arg]
     end
   }
 }
@@ -74,7 +74,7 @@ $fetch_api = -> (method, uri, headers, params) {
   Oj.load(res)
 }
 
-$update_data = -> (redis, arg) {
+$update_data = -> (redis, user_id, arg) {
   data = []
 
   arg.each do |service, conf|
@@ -90,7 +90,7 @@ $update_data = -> (redis, arg) {
     data << {"service" => service, "data" => $fetch_api[method, uri, headers, params]}
   end
 
-  redis.hset("data", t["user_id"], Oj.dump(data))
+  redis.hset("data", user_id, Oj.dump(data))
 }
 
 $init[]

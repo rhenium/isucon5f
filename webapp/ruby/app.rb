@@ -164,7 +164,7 @@ SQL
     end
 
     redis.hset("subscriptions", user[:id], Oj.dump(arg))
-    $update_data[redis, arg]
+    $update_data[redis, user[:id], arg]
     redirect '/modify'
   end
 
