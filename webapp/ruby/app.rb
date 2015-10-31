@@ -181,7 +181,7 @@ class Isucon5f::WebApp < Sinatra::Base
         _a = fetch_api("http://api.five-final.isucon.net:8988/", {}, {"zipcode" => c})
         redis.set("tenki", _a)
         a = Oj.load(_a)
-        redis.expireat("tenki", Time.parse(a["date"]).to_i + 3)
+        redis.expireat("tenki", Time.parse(a["date"]).to_i)
       end
       a
     else
