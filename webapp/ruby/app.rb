@@ -200,7 +200,7 @@ SQL
       c = conf["token"]
       _a = redis.get("tenki")
       a = Oj.load(_a) if _a
-      if !_a || Time.at(a["date"]) < Time.now - 3 # TODO
+      if !_a || Time.parse(a["date"]) < Time.now - 3 # TODO
         _a = fetch_api("http://api.five-final.isucon.net:8988/", {}, {"zipcode" => c})
         redis.set("tenki", _a)
         a = Oj.load(_a)
