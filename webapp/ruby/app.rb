@@ -9,6 +9,7 @@ require 'openssl'
 require 'rack-lineprof'
 require "redis"
 require "redis/connection/hiredis"
+require "digest/sha2"
 
 # bundle config build.pg --with-pg-config=<path to pg_config>
 # bundle install
@@ -48,17 +49,13 @@ class Isucon5f::WebApp < Sinatra::Base
     end
 
     def authenticate(email, password)
-      query = <<SQL
-SELECT id, email, grade FROM users WHERE email=$1 AND passhash=digest(salt || $2, 'sha512')
-SQL
-      user = nil
-      db.exec_params(query, [email, password]) do |result|
-        result.each do |tuple|
-          user = {id: tuple['id'].to_i, email: tuple['email'], grade: tuple['grade']}
+      if preu = redis.hget(email)
+        preuu = Oj.load(preu)
+        if preuu[:passhash] == Digest::SHA512.digest(preuu[:salt] + password)
+          session[:user] = preu
+          @user = preuu
         end
       end
-      session[:user] = Oj.dump(user)
-      @user = user
     end
 
     def current_user
@@ -83,13 +80,12 @@ SQL
   end
 
   post '/signup' do
-    email, password, grade = params['email'], params['password'], params['grade']
+    nid = redis.incr("user_lid")
     salt = generate_salt
-    insert_user_query = <<SQL
-INSERT INTO users (email,salt,passhash,grade) VALUES ($1,$2,digest($3 || $4, 'sha512'),$5) RETURNING id
-SQL
-    user_id = db.exec_params(insert_user_query, [email,salt,salt,password,grade]).values.first.first
-    redis.hset("subscriptions", user_id.to_s, "{}")
+    passhash = Digest::SHA512.digest(salt + params['password'])
+    u = { id: nid.to_i, email: params['email'], grade: params['grade'], passhash: hash, salt: salt }
+    redis.hset(email, Oj.dump(u))
+    redis.hset("subscriptions", nid.to_s, "{}")
     redirect '/login'
   end
 

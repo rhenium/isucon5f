@@ -28,7 +28,7 @@ $init = -> {
   }
 
   redis = Redis.new
-  redis.flushdb
+  redis.del("subscriptions")
   conn.exec_params("select * from subscriptions") { |result|
     result.each.each_slice(100) { |ts|
       a = []
@@ -38,6 +38,21 @@ $init = -> {
       redis.hmset("subscriptions", *a)
     }
   }
+
+  lid = 0
+  redis.del("users")
+  conn.exec_params("select * from users") { |result|
+    result.each.each_slice(100) { |ts|
+      a = []
+      ts.each { |tuple|
+        lid = tuple['id'].to_i
+        a << tuple["email"] << Oj.dump({id: tuple['id'].to_i, email: tuple['email'], grade: tuple['grade'], passhash: tuple['passhash'], salt: tuple['salt']})
+      }
+      redis.hmset("users", *a)
+    }
+  }
+
+  redis.set("user_lid", lid)
 }
 
 $init[]
