@@ -36,7 +36,7 @@ class Isucon5f::WebApp < Sinatra::Base
     def authenticate(email, password)
       if preu = redis.hget("users", email)
         preuu = Oj.load(preu)
-        if preuu[:passhash] == Digest::SHA512.digest(preuu[:salt] + password)
+        if preuu[:passhash] == '\\x' + Digest::SHA512.hexdigest(preuu[:salt] + password)
           session[:user] = preu
           @user = preuu
         end
@@ -63,7 +63,7 @@ class Isucon5f::WebApp < Sinatra::Base
   post '/signup' do
     nid = redis.incr("user_lid")
     salt = generate_salt
-    passhash = Digest::SHA512.digest(salt + params['password'])
+    passhash = '\\x' + Digest::SHA512.hexdigest(salt + params['password'])
     u = { id: nid.to_i, email: params['email'], grade: params['grade'], passhash: hash, salt: salt }
     redis.hset("users", params['email'], Oj.dump(u))
     redis.hset("subscriptions", nid.to_s, "{}")
