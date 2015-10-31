@@ -6,6 +6,7 @@ require 'erubis'
 require 'oj'
 require 'httpclient'
 require 'openssl'
+require 'rack-lineprof'
 
 # bundle config build.pg --with-pg-config=<path to pg_config>
 # bundle install
