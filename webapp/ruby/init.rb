@@ -1,4 +1,7 @@
-require_relative './app.rb'
+require 'pg'
+require 'oj'
+require "redis"
+require "redis/connection/hiredis"
 
 $config = {
   db: {
@@ -26,17 +29,24 @@ $init = -> {
       $endpoints[tuple['service']] = [tuple["meth"], tuple["token_type"], tuple["token_key"], tuple["uri"]]
     }
   }
+}
 
+$sinit = -> {
+  conn = PG.connect(
+    host: $config[:db][:host],
+    port: $config[:db][:port],
+    user: $config[:db][:username],
+    password: $config[:db][:password],
+    dbname: $config[:db][:database],
+    connect_timeout: 3600
+  )
   redis = Redis.new
-  redis.del("subscriptions")
+  redis.del("data")
   conn.exec_params("select * from subscriptions") { |result|
-    result.each.each_slice(100) { |ts|
-      a = []
-      ts.each { |t|
-        a << t['user_id'] << t["arg"]
-      }
-      redis.hmset("subscriptions", *a)
-    }
+    result.each do |t|
+      p arg = Oj.load(t["arg"])
+      $update_data[redis, t["user_id"], arg]
+    end
   }
 }
 
@@ -75,6 +85,4 @@ $update_data = -> (redis, user_id, arg) {
 }
 
 $init[]
-
-use Rack::Lineprof
-run Isucon5f::WebApp
+$sinit[]
