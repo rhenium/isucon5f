@@ -100,7 +100,8 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   post '/modify' do
-    halt 403 unless cookies["user_id"]
+    id = cookies["user_id"]
+    halt 403 unless id
 
     service = params["service"]
     token = params.has_key?("token") ? params["token"].strip : nil
@@ -108,7 +109,7 @@ class Isucon5f::WebApp < Sinatra::Base
     param_name = params.has_key?("param_name") ? params["param_name"].strip : nil
     param_value = params.has_key?("param_value") ? params["param_value"].strip : nil
 
-    arg_json = redis.hget("subscriptions", user[:id])
+    arg_json = redis.hget("subscriptions", id)
     arg = Oj.load(arg_json)
     arg[service] ||= {}
     arg[service]['token'] = token if token
@@ -118,7 +119,7 @@ class Isucon5f::WebApp < Sinatra::Base
       arg[service]['params'][param_name] = param_value
     end
 
-    redis.hset("subscriptions", user[:id].to_s, Oj.dump(arg))
+    redis.hset("subscriptions", id, Oj.dump(arg))
     redirect '/modify'
   end
 
@@ -187,9 +188,10 @@ class Isucon5f::WebApp < Sinatra::Base
   end
 
   get '/data' do
-    halt 403 unless cookies["user_id"]
+    id = cookies["user_id"]
+    halt 403 unless id
 
-    arg_json = redis.hget("subscriptions", cookies["user_id"].to_s)
+    arg_json = redis.hget("subscriptions", id)
     arg = Oj.load(arg_json)
 
     data = []
